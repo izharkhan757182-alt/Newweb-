@@ -23,7 +23,7 @@ function cors(res){
 }
 
 function hfUrl(model){
-  return `https://api-inference.huggingface.co/models/${model}`;
+  return `https://router.huggingface.co/hf-inference/models/${model}`;
 }
 
 // Helper: call HF with image-to-image / image input
