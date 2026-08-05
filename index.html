@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ToolSphere — AI Tools</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+<style>body{font-family:'Geist',sans-serif}</style>
+</head>
+<body class="bg-[#0A0A0B] text-zinc-100 min-h-screen antialiased selection:bg-white selection:text-black">
+  <div class="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.08),transparent_60%)] pointer-events-none"></div>
+  <nav class="relative z-10 border-b border-white/[0.06] backdrop-blur-xl bg-[#0A0A0B]/70">
+    <div class="max-w-[1120px] mx-auto px-6 h-[64px] flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-white text-black grid place-items-center font-bold text-[13px]">TS</div>
+        <span class="font-semibold tracking-tight">ToolSphere</span>
+        <span class="ml-2 text-[10px] px-2 py-1 rounded-full bg-white/[0.08] border border-white/[0.08] tracking-widest">TOOLS v1</span>
+      </div>
+      <a href="https://github.com" target="_blank" class="text-xs text-zinc-400 hover:text-white transition">GitHub →</a>
+    </div>
+  </nav>
+
+  <main class="relative z-10 max-w-[1120px] mx-auto px-6 pt-20 pb-20">
+    <div class="max-w-[640px]">
+      <div class="inline-flex items-center gap-2 text-[11px] tracking-widest text-zinc-400 border border-white/[0.08] rounded-full px-3 py-1 mb-6">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> HF API • FREE TIER • FLUX + ESRGAN
+      </div>
+      <h1 class="text-[44px] md:text-[64px] font-bold leading-[0.9] tracking-[-0.04em]">
+        Two tools.<br/>One API key.<br/><span class="text-zinc-500">Ship today.</span>
+      </h1>
+      <p class="mt-6 text-[15px] leading-6 text-zinc-400 max-w-[480px]">
+        Minimal dependencies. No npm install. Vercel serverless handles Hugging Face. FLUX.1-schnell primary, SDXL-Turbo fallback.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 mt-14">
+      <!-- GENERATOR CARD -->
+      <a href="/generator.html" class="group relative rounded-[20px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] p-[1px] overflow-hidden hover:border-white/[0.14] transition">
+        <div class="rounded-[19px] bg-[#121213] p-7 h-full">
+          <div class="w-10 h-10 rounded-xl bg-white text-black grid place-items-center mb-8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M12 11v6"/><path d="M9 18h6"/></svg></div>
+          <h3 class="text-[20px] font-semibold tracking-tight">Image Generator</h3>
+          <p class="mt-2 text-[13.5px] leading-5 text-zinc-400">Prompt → FLUX.1-schnell. If rate-limited → SDXL-Turbo. Returns image blob, auto download.</p>
+          <div class="mt-6 flex items-center gap-2 text-[12px]">
+            <span class="px-2.5 py-1 rounded-full bg-white text-black font-medium group-hover:bg-zinc-100 transition">Open /generator.html</span>
+            <span class="text-zinc-500">⌘ G</span>
+          </div>
+          <div class="absolute top-7 right-7 text-[10px] tracking-widest text-zinc-500 border border-white/[0.08] rounded-full px-2 py-1">MODEL: FLUX</div>
+        </div>
+      </a>
+
+      <!-- ENHANCER CARD -->
+      <a href="/enhancer.html" class="group relative rounded-[20px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] p-[1px] overflow-hidden hover:border-white/[0.14] transition">
+        <div class="rounded-[19px] bg-[#121213] p-7 h-full">
+          <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-white/[0.06] text-white grid place-items-center mb-8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <h3 class="text-[20px] font-semibold tracking-tight">Image Enhancer</h3>
+          <p class="mt-2 text-[13.5px] leading-5 text-zinc-400">Drag & drop → 4x Upscale + Face restore. Before/After slider. Base64 → HF → Blob.</p>
+          <div class="mt-6 flex items-center gap-2 text-[12px]">
+            <span class="px-2.5 py-1 rounded-full bg-white/[0.08] border border-white/[0.08] font-medium group-hover:bg-white/[0.12] transition">Open /enhancer.html</span>
+            <span class="text-zinc-500">⌘ E</span>
+          </div>
+          <div class="absolute top-7 right-7 text-[10px] tracking-widest text-zinc-500 border border-white/[0.08] rounded-full px-2 py-1">MODEL: ESRGAN</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="mt-12 flex flex-wrap gap-2 text-[11px]">
+      <span class="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] text-zinc-400">Zero npm dependencies</span>
+      <span class="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] text-zinc-400">Vercel maxDuration 60s</span>
+      <span class="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] text-zinc-400">CORS ready</span>
+      <span class="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] text-zinc-400">HF_TOKEN env only</span>
+    </div>
+  </main>
+</body>
+</html>
