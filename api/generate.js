@@ -17,7 +17,7 @@ function cors(res){
 
 function hfUrl(model){
   // New HF router endpoint (works with classic /models/ too)
-  return `https://api-inference.huggingface.co/models/${model}`;
+  return `https://router.huggingface.co/hf-inference/models/${model}`;
 }
 
 async function callHF(model, prompt, token){
