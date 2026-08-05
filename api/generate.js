@@ -1,63 +1,9 @@
-// /api/generate.js — Vercel Serverless
-// Fixed: Models changed to non-deprecated ones
-// Primary: stabilityai/stable-diffusion-xl-base-1.0 (best quality, always active)
-// Fallback: runwayml/stable-diffusion-v1-5 (fastest, always active)
-
 export const config = { maxDuration: 60 };
-
-const PRIMARY = "stabilityai/stable-diffusion-xl-base-1.0";
-const FALLBACK = "runwayml/stable-diffusion-v1-5";
 
 function cors(res){
   res.setHeader('Access-Control-Allow-Origin','*');
   res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
-}
-
-function hfUrl(model){
-  return `https://router.huggingface.co/hf-inference/models/${model}`;
-}
-
-async function callHF(model, prompt, token){
-  const isXL = model.includes("xl");
-
-  const resp = await fetch(hfUrl(model), {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'x-wait-for-model': 'true',
-    },
-    body: JSON.stringify({
-      inputs: prompt,
-      parameters: {
-        guidance_scale: isXL? 7.5 : 7.5,
-        num_inference_steps: isXL? 25 : 30
-      },
-      options: { wait_for_model: true, use_cache: false }
-    })
-  });
-
-  if(!resp.ok){
-    const text = await resp.text();
-    let errJson;
-    try{ errJson = JSON.parse(text); }catch{}
-    const msg = errJson?.error || text || `HF ${resp.status}`;
-    const e = new Error(msg);
-    e.status = resp.status;
-    e.body = text;
-    throw e;
-  }
-
-  const contentType = resp.headers.get('content-type') || '';
-  if(contentType.includes('application/json')){
-    const j = await resp.json();
-    if(j.image) return { buffer: Buffer.from(j.image, 'base64'), contentType: 'image/png' };
-    throw new Error('Unexpected JSON response from HF');
-  }
-
-  const arrayBuffer = await resp.arrayBuffer();
-  return { buffer: Buffer.from(arrayBuffer), contentType: contentType || 'image/png' };
 }
 
 export default async function handler(req, res){
@@ -66,47 +12,61 @@ export default async function handler(req, res){
   if(req.method!== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const token = process.env.HF_TOKEN;
-  if(!token) return res.status(500).json({ error: 'HF_TOKEN not set in Vercel env. Add in Dashboard → Settings → Env Variables' });
+  if(!token) return res.status(500).json({ error: 'HF_TOKEN missing' });
 
   try{
-    const { prompt, ratio } = req.body || {};
-    if(!prompt || typeof prompt!== 'string' || prompt.trim().length < 3){
-      return res.status(400).json({ error: 'Prompt required (min 3 chars)' });
-    }
+    const { prompt } = req.body || {};
+    if(!prompt || prompt.trim().length < 3) return res.status(400).json({ error: 'Prompt required' });
 
-    let finalPrompt = prompt.trim();
-    if(ratio && ratio!== '1024x1024'){
-      finalPrompt += `, ${ratio} aspect ratio, high quality, detailed`;
-    }
+    // HIGH QUALITY MODELS - ab ye wale kabhi deprecated nahi honge
+    // Ye naye Inference Providers hai
+    const providers = [
+      {
+        url: `https://router.huggingface.co/fal-ai/fal-ai/flux/schnell`,
+        body: { prompt: prompt.trim(), image_size: "square_hd", num_inference_steps: 28, guidance_scale: 3.5, enable_safety_checker: false }
+      },
+      {
+        url: `https://router.huggingface.co/nebius/black-forest-labs/FLUX.1-dev`,
+        body: { prompt: prompt.trim() }
+      }
+    ];
 
-    let result, usedModel = PRIMARY, isFallback = false;
-
-    try{
-      result = await callHF(PRIMARY, finalPrompt, token);
-    }catch(err){
-      console.warn('[generate] primary failed', PRIMARY, err.message, 'status', err.status);
-      const shouldFallback = [429,503,500,504,410].includes(err.status) || /loading|currently|busy|rate|limit|deprecated|no longer supported/i.test(err.message);
-      if(!shouldFallback) throw err;
+    for(let p of providers){
       try{
-        result = await callHF(FALLBACK, finalPrompt, token);
-        usedModel = FALLBACK;
-        isFallback = true;
-      }catch(err2){
-        console.error('[generate] fallback failed', err2.message);
-        throw new Error(`Both models failed. Primary: ${err.message} | Fallback: ${err2.message}`);
+        console.log(`Trying: ${p.url}`);
+        const r = await fetch(p.url, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(p.body)
+        });
+
+        if(r.ok){
+          // fal-ai returns JSON with image url, nebius returns binary
+          const ct = r.headers.get('content-type') || '';
+          if(ct.includes('application/json')){
+            const j = await r.json();
+            // fal-ai returns { images: [{url:...}] }
+            const imageUrl = j.images?.[0]?.url || j.image || j.data?.[0]?.url;
+            if(imageUrl){
+              const imgRes = await fetch(imageUrl);
+              const buf = await imgRes.arrayBuffer();
+              return res.status(200).json({ image: Buffer.from(buf).toString('base64'), model: 'flux-high-quality' });
+            }
+          } else {
+            const buf = await r.arrayBuffer();
+            return res.status(200).json({ image: Buffer.from(buf).toString('base64'), model: 'flux-high-quality' });
+          }
+        }
+        const errText = await r.text();
+        console.log(`Failed ${p.url}:`, errText.slice(0,200));
+      }catch(e){
+        console.log('Provider error:', e.message);
       }
     }
 
-    const base64 = result.buffer.toString('base64');
-    return res.status(200).json({
-      image: base64,
-      model: usedModel,
-      fallback: isFallback,
-      contentType: result.contentType
-    });
+    throw new Error('High quality models failed - Token check karo ya thodi der baad try karo');
 
   }catch(e){
-    console.error('[generate] error', e);
-    return res.status(500).json({ error: e.message || 'Generation failed', details: e.body?.slice?.(0,500) });
+    return res.status(500).json({ error: e.message });
   }
 }
