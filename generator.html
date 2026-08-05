@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,19 +14,16 @@
   </header>
 
   <main class="max-w-[1120px] mx-auto px-6 py-10 grid lg:grid-cols-[380px_1fr] gap-8">
-    <!-- Controls -->
     <div class="space-y-5">
       <div>
         <h1 class="text-[28px] font-semibold tracking-tight leading-none">Image Generator</h1>
-        <p class="text-[13px] text-zinc-500 mt-2">FLUX.1-schnell primary, SDXL-Turbo fallback. Free HF Inference.</p>
+        <p class="text-[13px] text-zinc-500 mt-2">FLUX HD — Free, High Quality</p>
       </div>
-
       <div class="rounded-2xl border border-white/[0.08] bg-[#121213] p-5 space-y-4">
         <div>
           <label class="text-[11px] tracking-widest text-zinc-400 uppercase">Prompt</label>
           <textarea id="prompt" rows="4" placeholder="A cinematic shot of a cyberpunk street market, neon rain, ultra detailed..." class="mt-2 w-full rounded-xl bg-[#0A0A0B] border border-white/[0.08] p-3 text-[13.5px] outline-none focus:border-white/20 placeholder:text-zinc-600"></textarea>
         </div>
-
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-[11px] tracking-widest text-zinc-400 uppercase">Style</label>
@@ -49,21 +45,14 @@
             </select>
           </div>
         </div>
-
         <button id="genBtn" class="w-full h-11 rounded-xl bg-white text-black text-[13px] font-semibold hover:bg-zinc-100 transition flex items-center justify-center gap-2">
           <span id="genBtnText">Generate →</span>
           <svg id="genSpinner" class="hidden animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
         </button>
-
         <div id="status" class="text-[11px] text-zinc-500 min-h-[16px]"></div>
-      </div>
-
-      <div class="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3 text-[11px] leading-5 text-zinc-400">
-        <b class="text-zinc-200">Free API tip:</b> HF Inference is free but rate-limited. This UI auto-retries with fallback model if primary returns 429/503.
       </div>
     </div>
 
-    <!-- Output -->
     <div class="rounded-[20px] border border-white/[0.08] bg-[#121213] p-3 min-h-[520px] flex flex-col">
       <div class="flex items-center justify-between px-2 py-2">
         <span class="text-[11px] tracking-widest text-zinc-500 uppercase">Output</span>
@@ -73,7 +62,7 @@
         <div id="placeholder" class="text-center p-10">
           <div class="w-12 h-12 mx-auto rounded-full bg-white/[0.06] grid place-items-center mb-3">✦</div>
           <p class="text-[13px] text-zinc-400">Your image will appear here</p>
-          <p class="text-[11px] text-zinc-600 mt-1">~5-12 sec on FLUX schnell</p>
+          <p class="text-[11px] text-zinc-600 mt-1">~8-15 sec on FLUX HD</p>
         </div>
         <img id="resultImg" class="hidden w-full h-full object-contain"/>
       </div>
@@ -82,66 +71,68 @@
 
 <script>
 const $ = s => document.querySelector(s);
-const genBtn = $('#genBtn'), genBtnText=$('#genBtnText'), spinner=$('#genSpinner');
-const promptEl = $('#prompt'), styleEl = $('#style'), statusEl=$('#status');
-const outImg=$('#resultImg'), placeholder=$('#placeholder'), dlBtn=$('#downloadBtn');
+const genBtn = $('#genBtn'), genBtnText = $('#genBtnText'), spinner = $('#genSpinner');
+const promptEl = $('#prompt'), styleEl = $('#style'), ratioEl = $('#ratio'), statusEl = $('#status');
+const outImg = $('#resultImg'), placeholder = $('#placeholder'), dlBtn = $('#downloadBtn');
 
 async function generate(){
-  const promptInput = document.getElementById('promptInput');
-const generateBtn = document.getElementById('generateBtn');
-const outputImage = document.getElementById('outputImage');
-const statusText = document.getElementById('statusText');
+  let prompt = promptEl.value.trim();
+  if(!prompt){ statusEl.textContent = 'Prompt likh pehle!'; return; }
 
-generateBtn.addEventListener('click', async () => {
-  const prompt = promptInput.value.trim();
-  if(!prompt){
-    alert('Prompt likh pehle!');
-    return;
-  }
+  const style = styleEl.value;
+  if(style) prompt = `${prompt}, ${style}`;
+
+  const ratio = ratioEl.value || '1024x1024';
+  const [w,h] = ratio.split('x');
+
+  genBtn.disabled = true;
+  genBtnText.textContent = 'Generating HD...';
+  spinner.classList.remove('hidden');
+  statusEl.textContent = 'FLUX HD se bana raha hun, 10-15 sec lagega...';
+  dlBtn.classList.add('hidden');
 
   try{
-    generateBtn.disabled = true;
-    generateBtn.innerText = 'Generating... HD me bana raha hun...';
-    statusText.innerText = 'Please wait 10-15 sec...';
-    outputImage.style.display = 'none';
-
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, width: w, height: h })
     });
 
-    // YAHI FIX HAI - 'A' wale error ka
     const rawText = await res.text();
     let data;
     try{
       data = JSON.parse(rawText);
-    }catch(err){
-      console.error('Non-JSON response:', rawText.slice(0,300));
-      throw new Error('Server busy - 10 sec baad retry karo');
+    }catch(e){
+      console.error('Server returned:', rawText.slice(0,500));
+      throw new Error('Server busy - 10 sec baad try karo');
     }
 
-    if(!res.ok){
-      throw new Error(data.error || 'Failed');
-    }
+    if(!res.ok) throw new Error(data.error || 'Generation failed');
+    if(!data.image) throw new Error('Image nahi mili');
 
-    if(!data.image){
-      throw new Error('Image nahi mili');
-    }
+    outImg.src = `data:image/png;base64,${data.image}`;
+    outImg.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    dlBtn.classList.remove('hidden');
+    statusEl.textContent = `Done! Model: ${data.model}`;
 
-    outputImage.src = `data:image/png;base64,${data.image}`;
-    outputImage.style.display = 'block';
-    statusText.innerText = `Done! Model: ${data.model}`;
-    
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = outImg.src;
+      a.download = `toolsphere-${Date.now()}.png`;
+      a.click();
+    };
+
   }catch(err){
+    statusEl.textContent = 'Error: ' + err.message;
     console.error(err);
-    statusText.innerText = 'Error: ' + err.message;
-    alert(err.message);
   }finally{
-    generateBtn.disabled = false;
-    generateBtn.innerText = 'Generate';
+    genBtn.disabled = false;
+    genBtnText.textContent = 'Generate →';
+    spinner.classList.add('hidden');
   }
-});
+}
+
 genBtn.addEventListener('click', generate);
 promptEl.addEventListener('keydown', e=>{ if(e.key==='Enter' && (e.metaKey||e.ctrlKey)) generate(); });
 </script>
