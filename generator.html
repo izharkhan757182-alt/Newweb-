@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Generator — ToolSphere</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&display=swap" rel="stylesheet">
+<style>body{font-family:Geist,sans-serif}</style>
+</head>
+<body class="bg-[#0A0A0B] text-zinc-100 min-h-screen">
+  <header class="h-[56px] border-b border-white/[0.06] flex items-center px-6 justify-between">
+    <a href="/" class="flex items-center gap-2"><div class="w-7 h-7 bg-white text-black grid place-items-center rounded-md font-bold text-xs">TS</div><span class="text-sm font-semibold">ToolSphere</span><span class="text-[11px] text-zinc-500 ml-2">/ generator</span></a>
+    <a href="/enhancer.html" class="text-xs px-3 py-1.5 rounded-full bg-white/[0.08] border border-white/[0.08] hover:bg-white/[0.12]">Enhancer →</a>
+  </header>
+
+  <main class="max-w-[1120px] mx-auto px-6 py-10 grid lg:grid-cols-[380px_1fr] gap-8">
+    <!-- Controls -->
+    <div class="space-y-5">
+      <div>
+        <h1 class="text-[28px] font-semibold tracking-tight leading-none">Image Generator</h1>
+        <p class="text-[13px] text-zinc-500 mt-2">FLUX.1-schnell primary, SDXL-Turbo fallback. Free HF Inference.</p>
+      </div>
+
+      <div class="rounded-2xl border border-white/[0.08] bg-[#121213] p-5 space-y-4">
+        <div>
+          <label class="text-[11px] tracking-widest text-zinc-400 uppercase">Prompt</label>
+          <textarea id="prompt" rows="4" placeholder="A cinematic shot of a cyberpunk street market, neon rain, ultra detailed..." class="mt-2 w-full rounded-xl bg-[#0A0A0B] border border-white/[0.08] p-3 text-[13.5px] outline-none focus:border-white/20 placeholder:text-zinc-600"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] tracking-widest text-zinc-400 uppercase">Style</label>
+            <select id="style" class="mt-2 w-full rounded-xl bg-[#0A0A0B] border border-white/[0.08] p-2.5 text-[13px] outline-none">
+              <option value="">No style</option>
+              <option value="cinematic, highly detailed, 8k">Cinematic</option>
+              <option value="anime style, studio ghibli">Anime</option>
+              <option value="photorealistic, DSLR">Photo Real</option>
+              <option value="minimal vector logo">Vector / Logo</option>
+              <option value="3d render, octane">3D Render</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] tracking-widest text-zinc-400 uppercase">Ratio</label>
+            <select id="ratio" class="mt-2 w-full rounded-xl bg-[#0A0A0B] border border-white/[0.08] p-2.5 text-[13px] outline-none">
+              <option value="1024x1024">1:1 — 1024</option>
+              <option value="1024x576">16:9 — Landscape</option>
+              <option value="576x1024">9:16 — Portrait</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="genBtn" class="w-full h-11 rounded-xl bg-white text-black text-[13px] font-semibold hover:bg-zinc-100 transition flex items-center justify-center gap-2">
+          <span id="genBtnText">Generate →</span>
+          <svg id="genSpinner" class="hidden animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        </button>
+
+        <div id="status" class="text-[11px] text-zinc-500 min-h-[16px]"></div>
+      </div>
+
+      <div class="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3 text-[11px] leading-5 text-zinc-400">
+        <b class="text-zinc-200">Free API tip:</b> HF Inference is free but rate-limited. This UI auto-retries with fallback model if primary returns 429/503.
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="rounded-[20px] border border-white/[0.08] bg-[#121213] p-3 min-h-[520px] flex flex-col">
+      <div class="flex items-center justify-between px-2 py-2">
+        <span class="text-[11px] tracking-widest text-zinc-500 uppercase">Output</span>
+        <button id="downloadBtn" class="hidden text-[11px] px-3 py-1.5 rounded-full bg-white text-black font-medium">Download PNG</button>
+      </div>
+      <div id="output" class="flex-1 rounded-xl bg-[#0A0A0B] border border-white/[0.06] grid place-items-center overflow-hidden relative">
+        <div id="placeholder" class="text-center p-10">
+          <div class="w-12 h-12 mx-auto rounded-full bg-white/[0.06] grid place-items-center mb-3">✦</div>
+          <p class="text-[13px] text-zinc-400">Your image will appear here</p>
+          <p class="text-[11px] text-zinc-600 mt-1">~5-12 sec on FLUX schnell</p>
+        </div>
+        <img id="resultImg" class="hidden w-full h-full object-contain"/>
+      </div>
+    </div>
+  </main>
+
+<script>
+const $ = s => document.querySelector(s);
+const genBtn = $('#genBtn'), genBtnText=$('#genBtnText'), spinner=$('#genSpinner');
+const promptEl = $('#prompt'), styleEl = $('#style'), statusEl=$('#status');
+const outImg=$('#resultImg'), placeholder=$('#placeholder'), dlBtn=$('#downloadBtn');
+
+async function generate(){
+  const prompt = promptEl.value.trim();
+  if(!prompt) { statusEl.textContent='Enter a prompt first.'; return; }
+  const fullPrompt = styleEl.value ? prompt + ', ' + styleEl.value : prompt;
+
+  genBtn.disabled=true; genBtnText.textContent='Generating...'; spinner.classList.remove('hidden');
+  statusEl.textContent='Calling /api/generate • model: flux.1-schnell...';
+  placeholder.classList.add('hidden'); outImg.classList.add('hidden'); dlBtn.classList.add('hidden');
+
+  try{
+    const res = await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt: fullPrompt, ratio: document.getElementById('ratio').value })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Generation failed');
+
+    // data.image is base64
+    const src = 'data:image/png;base64,' + data.image;
+    outImg.src = src;
+    outImg.classList.remove('hidden');
+    dlBtn.classList.remove('hidden');
+    statusEl.textContent = 'Done • model used: ' + (data.model || 'unknown') + (data.fallback ? ' (fallback)' : '');
+    dlBtn.onclick = () => {
+      const a=document.createElement('a'); a.href=src; a.download='toolsphere-'+Date.now()+'.png'; a.click();
+    };
+  }catch(e){
+    statusEl.textContent = 'Error: ' + e.message;
+    placeholder.classList.remove('hidden');
+  }finally{
+    genBtn.disabled=false; genBtnText.textContent='Generate →'; spinner.classList.add('hidden');
+  }
+}
+genBtn.addEventListener('click', generate);
+promptEl.addEventListener('keydown', e=>{ if(e.key==='Enter' && (e.metaKey||e.ctrlKey)) generate(); });
+</script>
+</body>
+</html>
